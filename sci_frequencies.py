@@ -21,8 +21,9 @@ import scipy.fftpack
 #from scipy.signal import hilbert
 
 samplerate_s, data_s = wavfile.read('BOS06_zfAB009-ba_v08_denoised.wav')
-times = np.arange(len(data_s))/float(samplerate_s)
-indexes=np.arange(len(data_s))
+times                = np.arange(len(data_s))/float(samplerate_s)
+indexes              = np.arange(len(data_s))
+
 
 NU=len(data_s)
 frecuencia=np.zeros(NU)
@@ -37,7 +38,7 @@ def getEnvelope(inputSignal):
     # Peak detection
 
     intervalLength = 405 # change this number depending on your Signal frequency content and time scale
-    outputSignal = []
+    outputSignal   = []
 
     for baseIndex in range (0, len (absoluteSignal)):
         maximum = 0
@@ -62,19 +63,19 @@ plt.ylabel('Frecuencia (Hz) y posicion del labio')
 plt.xlabel('Time [sec]')
 plt.show()
 
-spectral_index= []
-spectral_complexity = []
+spectral_index       = []
+spectral_complexity  = []
 spectral_information = []
 
 for i in range(Sxx.shape[1]):
     spec=[x[i] for x in Sxx]
     
-    norma=0
-    integral=0
-    sci=0
-    complexity=0
-    information=0
-    desequilibrio=0
+    norma         = 0
+    integral      = 0
+    sci           = 0
+    complexity    = 0
+    information   = 0
+    desequilibrio = 0
     #calculo del espectro por ventanitas normalizado
     for i in range(len(spec)):
         norma=norma+spec[i]
@@ -179,3 +180,9 @@ ax=fig.add_subplot(111, projection= '3d')
 ax.scatter(spectral_information_pos,spectral_complexity_pos,spectral_index_pos,color='r',marker='.')
 
 plt.show()
+
+
+n    =0
+k    =8
+l    =7
+lolo =9
