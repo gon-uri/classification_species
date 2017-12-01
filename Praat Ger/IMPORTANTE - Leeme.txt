@@ -1,0 +1,28 @@
+**** Desde los wavs:
+
+0) Chequear que los p- no terminen con "-w.wav". Si es así, renombrarlos para sacarle la "d".
+
+1) Abrir con el Praat: "Abre-Canta-Calla.praat" (yo lo ponía en la misma carpeta donde estaba todo el audio) via la ventana de "Praat Objects --> Praat/Open Praat Script. Seleccionar la carpeta donde están los files (recordar la / final.... por ejemplo /home/argos/Escritorio/SecondWave/T0/) y poner "s" en el filtro. Luego "ctrl+r" para ejecutarlo.
+
+2) Abrir el script "get-files-long.praat" (no hace falta que esté en el mismo lado). Este abre archivos más rápido. Seleccionar la misma carpeta, pero esta vez poner "p" en el filtro.
+
+3) Seleccionar a la vez (con shift mantenido apretado) el "TextGrid" y el "LongSound" de cada file. Luego darle "View & Edit". Después, buscar el "p-" correspondiente (está al final, como LongSound) y darle "view"
+
+4) Navegar ambos archivos (fijarse que estén agrupados) Con "enter" marcar las zonas y ponerle cualquier nombre (puede ser repetido, yo le pongo "b"). Con alt+backspace borra los intervalos. Repetir para todos lso files.
+
+5) Abrir el script "Guarda-Todo-con-presion2.praat" (yo lo ponía en la misma carpeta donde estaba todo el audio). Va a ir preguntando en cada file si guarar o no. Si tira error, verificar los nombres de los "p-" (ver paso cero).
+
+
+**** Una vez que están los waves cortados:
+
+Qué hace cada cosa y en qué orden:
+
+01.-	"ReSampler.praat" = Reesamplea los datos a 5000 puntos y los graba con el mismo nombre pero en "short text file". Atenti con la ruta de la carpeta (/home/argos/Escritorio/037/RAW/ ---> /home/argos/Escritorio/037/txt/). Para ejecutarlo, abrir los archivos en el prat (NO HACE FALTA ESTO). Luego Praat/Open Praat Script, cargamos el archivo, "ctrl+r" y le damos OK. Aparecerá una ventanita con los resultados. Si no pasa nada, es que hay problemas con las carpetas.
+RESAMPLEAR a 5000
+
+02.-	"read.c" = Cambia el nombre de todos los archivos de una carpeta (atenti con la ruta) a cosas del estilo "RAW_###.dat". Genera el archivo "AA - TODO.dat" donde está la conversión entre los dos nombres (GUARDAR ESTE ARCHIVO)
+LOS ARCHIVOS A MANIPULAR TIENEN QUE ESTAR EN /home/argos/Escritorio/Sin Temp/datos/
+
+03.-	"post_read.c" = Elimina las primeras filas de cada archivo (información de más del praat). Los archivos se tienen que llamar "RAW_###" y tiene que estar disponible para la lectura el archivo "AA - TODO.dat" (afuera de la carpeta donde están los RAW_###). La carpeta donde están los archivos es la misma que en (02).
+
+04.-	"digitalizador.c" y "P0_digitalizador.c" = Analizan la señal. Para cada RAW_###, generan "gesto_compara_###". "Xpicos_###", "Npicos_###". Todos los datos juntos son puestos en "Todas_las_frec.dat"

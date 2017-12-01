@@ -20,7 +20,8 @@ import scipy.fftpack
 
 #from scipy.signal import hilbert
 
-samplerate_s, data_s = wavfile.read('BOS06_zfAB009-ba_v08_denoised.wav')
+#samplerate_s, data_s = wavfile.read('BOS06_zfAB009-ba_v08_denoised.wav')
+samplerate_s, data_s = wavfile.read('/home/usuario/Desktop/Canto_Cortado/48-574/Leucochloris_albicollis_01_01.wav')
 times                = np.arange(len(data_s))/float(samplerate_s)
 indexes              = np.arange(len(data_s))
 
@@ -51,7 +52,6 @@ def getEnvelope(inputSignal):
 amplitude_envelope=getEnvelope(data_s)
 
 
-#
 # Calculo de los SCI en funcion del tiempo
 
 fu,tu,Sxx = signal.spectrogram(data_s,samplerate_s,nperseg=2*256,noverlap=256, scaling='spectrum')
@@ -181,8 +181,3 @@ ax.scatter(spectral_information_pos,spectral_complexity_pos,spectral_index_pos,c
 
 plt.show()
 
-
-n    =0
-k    =8
-l    =7
-lolo =9
