@@ -20,16 +20,16 @@ import seaborn as sns
 # from scipy.signal import hilbert
 
 #samplerate_s, data_s = wavfile.read('BOS06_zfAB009-ba_v08_denoised.wav')
-#samplerate_s, data_s = wavfile.read('/home/usuario/Desktop/Canto_Cortado/57-751/Thamnophilus_caerulescens_02_01.wav')
-#samplerate_s, data_s = wavfile.read('/home/usuario/Desktop/Canto_Cortado/48-574/Leucochloris_albicollis_03_02.wav')
-samplerate_s, data_s = wavfile.read('/home/usuario/Desktop/Canto_Cortado/02-5/Crypturellus_undulatus_01_01.wav')
+#samplerate_s, data_s = wavfile.read('/home/usuario/Desktop/Canto_Cortado/57-751/Thamnophilus_caerulescens_07_01.wav')
+samplerate_s, data_s = wavfile.read('/home/usuario/Desktop/Canto_Cortado/48-574/Leucochloris_albicollis_04_01.wav')
+#samplerate_s, data_s = wavfile.read('/home/usuario/Desktop/Canto_Cortado/02-5/Crypturellus_undulatus_01_01.wav')
 
 times                = np.arange(len(data_s))/float(samplerate_s)
 
 interval_time = 2 # Length of the amplitude window in miliseconds
 close_ret_window = 2000 # Height of the Close Returns graph in miliseconds
 close_ret_epsilon = 0.025 # Close Returns proximity Criteria 
-amp_cut = 0.15 # Percentage of amplitude for cut-off
+amp_cut = 0.25 # Percentage of amplitude for cut-off
 
 def get_features(input_signal,samp_rate,interval_time):
 
@@ -104,7 +104,7 @@ def getEnvelope(inputSignal):
 
     return outputSignal
 
-amplitude_envelope=getEnvelope(data_s)
+# amplitude_envelope=getEnvelope(data_s)
 
 temp_window,amp_window,entropy,last_signal = get_features(data_s,samplerate_s,interval_time)
 amp_window    = np.divide(amp_window,float(max(amp_window)))
@@ -184,39 +184,82 @@ ax1.set(ylim=[-1, 1])
 #axarr[1].ylabel('Power')
 plt.draw()
 
-smooth_amp_window = smooth(amp_window,20)
+smooth_amp_window = smooth(amp_window,26)
 smooth_amp_window = np.divide(smooth_amp_window,float(max(smooth_amp_window)))
-close_returns = get_close_returns(smooth_amp_window,temp_window,close_ret_window,close_ret_epsilon,amp_cut)
-colapsed_returns = smooth(np.sum(close_returns*-1+1,0),20)
+# close_returns = get_close_returns(smooth_amp_window,temp_window,close_ret_window,close_ret_epsilon,amp_cut)
+# colapsed_returns = smooth(np.sum(close_returns*-1+1,0),20)
+# Computes the mean and std of syllables duration
 
-fig2 = plt.figure(2)
-gs = grd.GridSpec(2, 2, height_ratios=[1,3], width_ratios=[6,1], wspace=0.1)
+syllab_indexs = np.nonzero(smooth_amp_window>amp_cut)[0]
 
-ax = plt.subplot(gs[2])
-p = ax.imshow(close_returns.T,aspect='auto',origin='lower',extent=[temp_window[0],temp_window[-1],0,temp_window[close_returns.shape[1]]])
-plt.xlabel('Time (seconds)')
-plt.ylabel('Time Delay (seconds)')
+limits = [syllab_indexs[0]]
+for n in range(len(syllab_indexs)-1):
+    if (syllab_indexs[n+1]-syllab_indexs[n])>1:
+        limits.append(syllab_indexs[n])
+        limits.append(syllab_indexs[n+1])
+limits.append(syllab_indexs[-1])
 
-ax2 = plt.subplot(gs[0])
+syllab_width_list = []
+
+init_index_list = []
+finish_index_list = []
+
+for n in range(0,len(limits),2):
+    # This was tricky, relating width with max position
+    # inter_max_index = limits[n]+int((limits[n+1]-limits[n])/2)
+    if (limits[n]!=limits[n+1]):
+        ini = temp_window[limits[n]]
+        finish = temp_window[limits[n+1]]
+        init_index_list.append(ini)
+        finish_index_list.append(finish)
+        syllab_width_list.append(finish-ini)
+
+syllab_width_array = np.asarray(syllab_width_list)
+
+
+# fig2 = plt.figure(2)
+# gs = grd.GridSpec(2, 2, height_ratios=[1,3], width_ratios=[6,1], wspace=0.1)
+
+# ax = plt.subplot(gs[2])
+# p = ax.imshow(close_returns.T,aspect='auto',origin='lower',extent=[temp_window[0],temp_window[-1],0,temp_window[close_returns.shape[1]]])
+# plt.xlabel('Time (seconds)')
+# plt.ylabel('Time Delay (seconds)')
+
+# ax2 = plt.subplot(gs[0])
+# x2 = plt.plot(temp_window,smooth_amp_window)
+# x22 = plt.axhline(y=amp_cut,xmin=0,xmax=temp_window[-1], hold=None,color="red")
+# x222 = plt.scatter(init_index_list,amp_cut*np.ones(len(init_index_list)),color="green")
+# x2222 = plt.scatter(finish_index_list,amp_cut*np.ones(len(finish_index_list)),color="orange")
+# axes = plt.gca()
+# axes.set_xlim(temp_window[0],temp_window[-1])
+# plt.ylabel('Amplitude')
+
+# distrib = plt.subplot(gs[3])
+# distrib.spines['right'].set_visible(False)
+# distrib.spines['top'].set_visible(False)
+# dis = plt.plot(colapsed_returns[20:], temp_window[20:close_returns.shape[1]])
+# #axes.set_xlim(0,temp_window[close_returns.shape[1]])
+# axes2 = plt.gca()
+# axes2.set_ylim(0,temp_window[close_returns.shape[1]])
+
+# #distrib.xaxis.tick_top()
+# plt.xlabel('Smooth Counts')
+# plt.draw()
+
+
+
+ax2 = plt.figure(1)
 x2 = plt.plot(temp_window,smooth_amp_window)
 x22 = plt.axhline(y=amp_cut,xmin=0,xmax=temp_window[-1], hold=None,color="red")
+x222 = plt.scatter(init_index_list,amp_cut*np.ones(len(init_index_list)),color="green")
+x2222 = plt.scatter(finish_index_list,amp_cut*np.ones(len(finish_index_list)),color="orange")
 axes = plt.gca()
 axes.set_xlim(temp_window[0],temp_window[-1])
 plt.ylabel('Amplitude')
-
-distrib = plt.subplot(gs[3])
-distrib.spines['right'].set_visible(False)
-distrib.spines['top'].set_visible(False)
-dis = plt.plot(colapsed_returns[20:], temp_window[20:close_returns.shape[1]])
-#axes.set_xlim(0,temp_window[close_returns.shape[1]])
-axes2 = plt.gca()
-axes2.set_ylim(0,temp_window[close_returns.shape[1]])
-
-#distrib.xaxis.tick_top()
-plt.xlabel('Smooth Counts')
 plt.draw()
+
 
 plt.show()
 
-# peaks = scipy.signal.find_peaks_cwt(colapsed_returns[20:],range(70,90,20))
-# peak_indices = scipy.signal.find_peaks_cwt(colapsed_returns[20:], *args)
+# plt.plot(temp_window,smooth(np.gradient(smooth_amp_window),20))
+# plt.show()

@@ -5,9 +5,17 @@ Created on November 2017
 
 @author: Gonzlao Uribarri
 
-It walks over all the directories present in "folders" list, and decodes 
-ALL MP3 files they contain. The it calculates some features of the signal 
+It walks over the directory "bird_number", and decodes 
+ALL MP3 files it contains. It calculates some features of the signal 
 in intervals over time, preparing a set of feature vectors for each audio.
+
+Calculated Features:
+- Max, width and entropy of Fourier Transform
+- Max, width and entropy of Close Returns
+
+Grafica la transformada de Fourier y las distribuciones de Close Returns
+para cada archivo. Pensado para graficar los disitintos individuos de una
+misma especie y ver variedad.
 
 """
 
@@ -17,6 +25,8 @@ import scipy as sp
 import seaborn as sns
 import os
 from pydub import AudioSegment
+import scipy.io.wavfile
+
 
 # -----------------------------------------------------------------------------
 # Parameters and files
@@ -146,7 +156,7 @@ for i in range(len(files)):
     name_list = files[i].split('_')
     bird_id_list.append(int(name_list[3]))
 
-    samp_rate, signal = sp.io.wavfile.read(files[i])
+    samp_rate, signal = scipy.io.wavfile.read(files[i])
     times = np.arange(len(signal))/float(samp_rate)
 
     # Computes the smoothed and normalized Envelope of the sound

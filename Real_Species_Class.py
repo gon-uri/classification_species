@@ -11,10 +11,10 @@ in intervals over time, preparing a set of feature vectors for each audio.
 
 Calculated Features:
 - Max, width and entropy of Fourier Transform
-- Max, width and entropy of Close Returns
+- Mean, width and entropy of syllabe time duration
 
-Grafica la transformada de Fourier y las distribuciones de Close Returns
-para cada archivo. Preparado para distintas especies
+Esta version grafica en el espacio de features, discriminando por especies.
+NO grafica las transformadas y NO calcula Close Returns
 
 """
 
@@ -26,19 +26,14 @@ import os
 from pydub import AudioSegment
 import scipy.io.wavfile
 
-
 # -----------------------------------------------------------------------------
 # Parameters and files
 # -----------------------------------------------------------------------------
 
 interval_time     = 2       # Length of the amplitude window (miliseconds)
-close_ret_window  = 1500     # Height of the Close Returns graph (miliseconds)
-close_ret_epsilon = 0.025   # Close Returns proximity Criteria 
-close_ret_start   = 100     # Take cr points from this time (miliseconds)
-amp_cut           = 0.15    # Percentage of amplitude for cut-off
+amp_cut           = 0.25    # Percentage of amplitude for cut-off
 
-smooth_time_amp = 0.25     # Smooth window for amplitude (miliseconds)
-smooth_time_cr  = 75     # Smooth window for colapsed returns (miliseconds)
+smooth_time_amp = 0.6     # Smooth window for amplitude (miliseconds)
 smooth_freq_fou = 100      # Smooth window for fourier transform (hertz) -300
 
 # -----------------------------------------------------------------------------
@@ -129,19 +124,14 @@ def get_entropy(vector):
 
 bird_id_list = []
 
-times_list           = []
-envelope_list        = []
-freq_list            = []
-fourier_list         = []
-cr_distribution_list = []
-
 fou_max_list     = []
 fou_wid_list     = []
 fou_entropy_list = []
 
-cr_max_list     = []
-cr_wid_list     = []
-cr_entropy_list = []
+syl_mean_list    = []
+syl_std_list     = []
+syl_entropy_list = []
+syl_num_list = []
 
 bird_species_list = ["02-5","02-9","48-574","57-751"]
 i = 0
@@ -167,8 +157,31 @@ for m in range(len(bird_species_list)):
         amp_window_smooth = smooth(amp_window,smooth_length_amp)
         amp_window_smooth_norm = np.divide(amp_window_smooth,
                                            float(max(amp_window_smooth)))
-        times_list.append(temp_window)
-        envelope_list.append(amp_window_smooth_norm)
+
+        # Computes the mean and std of syllables duration
+
+        syllab_indexs = np.nonzero(amp_window_smooth_norm>amp_cut)[0]
+
+        limits = [syllab_indexs[0]]
+        for n in range(len(syllab_indexs)-1):
+            if (syllab_indexs[n+1]-syllab_indexs[n])>1:
+                limits.append(syllab_indexs[n])
+                limits.append(syllab_indexs[n+1])
+        limits.append(syllab_indexs[-1])
+
+        syllab_width_list = []
+
+        for n in range(0,len(limits),2):
+            # This was tricky, relating width with max position
+            # inter_max_index = limits[n]+int((limits[n+1]-limits[n])/2)
+            if (limits[n]!=limits[n+1]):
+                syllab_width_list.append(temp_window[limits[n+1]]-temp_window[limits[n]])
+
+        syllab_width_array = np.asarray(syllab_width_list)
+
+        syl_mean_list.append(np.mean(syllab_width_array))
+        syl_std_list.append(np.std(syllab_width_array))
+        syl_entropy_list.append(get_entropy(syllab_width_array))
 
         # Computes the smoothed and normalized Fourier transform
         fourier = np.abs(np.fft.rfft(signal))
@@ -176,11 +189,9 @@ for m in range(len(bird_species_list)):
         freqs = np.fft.fftfreq(signal.size,d=times[1])
         # smooth_length_fou is in hertz
         smooth_length_fou = int(np.floor(smooth_freq_fou/float(freqs[1])))
-        fourier_smooth = smooth(fourier,smooth_length_fou)
+        fourier_smooth      = smooth(fourier,smooth_length_fou)
         fourier_smooth_norm = np.divide(np.asarray(fourier_smooth),
                                         np.max(fourier_smooth))
-        freq_list.append(freqs[0:(len(fourier_smooth_norm)-1)])
-        fourier_list.append(fourier_smooth_norm[0:-1])
 
         # Gets max position
         max_index = np.argmax(fourier_smooth_norm)
@@ -215,80 +226,7 @@ for m in range(len(bird_species_list)):
         fou_max_list.append(freqs[np.argmax(fourier_smooth_norm)])
         fou_entropy_list.append(fou_entropy)
 
-        # Computes the smoothed Closed Returns Distribution
-        close_returns = get_close_returns(amp_window_smooth,
-                                          temp_window, 
-                                          close_ret_window,
-                                          close_ret_epsilon,
-                                          amp_cut,
-                                          close_ret_start)
-        # Changes 0->1 and 1->0 in matriz and colapses it in the x-axis
-        returns_dist = np.sum(close_returns*-1+1,0)
-        # Divided by 1000 because smooth_time_cr is in miliseconds
-        # smooth_length_cr = int(np.floor(samp_rate*float(smooth_time_cr)/1000))
-        smooth_length_cr = int(np.floor(
-                               smooth_time_cr/float(1000*temp_window[1])
-                               ))
-        returns_dist_smooth = smooth(returns_dist,
-                                     smooth_length_cr)
-        # Normalized by the total number of counts
-        tot_counts = returns_dist.sum()
-        returns_dist_smooth_norm = np.divide(np.asarray(returns_dist_smooth),
-                                             float(tot_counts))
-
-        # Gets entropy of the close returns signal 
-        cr_entropy = get_entropy(returns_dist_smooth_norm)
-
-        # Calculates the max and width of close returns distribution
-        # max_index = np.argmax(returns_dist_smooth_norm)
-        # max_value = returns_dist_smooth_norm[max_index]
         
-        max_value = np.amax(returns_dist_smooth_norm)
-        # Calculates the minimun for the nonzero region
-        non_zero_init_time = close_ret_start+(smooth_time_cr/float(2))
-        non_zero_end_time = temp_window[-1]-(smooth_time_cr/float(2))
-        non_zero_init = int(np.floor(
-                                 non_zero_init_time/float(1000*temp_window[1])
-                                 ))
-        non_zero_end = int(np.floor(
-                                 non_zero_end_time/float(1000*temp_window[1])
-                                 ))
-        # Sum non_zero_init to get index in the full vector
-        min_index = np.argmin(returns_dist_smooth_norm[non_zero_init:non_zero_end])+non_zero_init
-        min_value = returns_dist_smooth_norm[min_index]
-        # Gets indexs greater half the size of the maximun 
-        high_indexs = np.nonzero(returns_dist_smooth_norm[0:-1]>(min_value+(max_value-min_value)/2))[0]
-        # Gets indexs of intervals limits
-        limits = [high_indexs[0]]
-        for n in range(len(high_indexs)-1):
-            if (high_indexs[n+1]-high_indexs[n])>1:
-                limits.append(high_indexs[n])
-                limits.append(high_indexs[n+1])
-        limits.append(high_indexs[-1])
-        # Gets intervals maximun width, amplitude and index
-        inter_max_index_list =[]
-        inter_width_list     =[]
-        inter_max_value_list =[]
-        for n in range(0,len(limits),2):
-            # This was tricky, relating width with max position
-            # inter_max_index = limits[n]+int((limits[n+1]-limits[n])/2)
-            if (limits[n]!=limits[n+1]):
-                inter_max_index = np.argmax(returns_dist_smooth_norm[limits[n]:limits[n+1]])
-                inter_max_index_list.append(inter_max_index)
-                inter_width_list.append(temp_window[limits[n+1]]-temp_window[limits[n]])
-                inter_max_value_list.append(returns_dist_smooth_norm[inter_max_index])
-        max_inter = max(inter_max_value_list)
-        max_index = inter_max_value_list.index(max_inter)
-        select_index = max_index
-        for it in range(select_index-1,0,-1):
-            # PARAMETRO PROVISORIO
-            if (inter_max_index_list[it]-(inter_max_index_list[select_index]/2))<(0.05*inter_max_index_list[select_index]):
-                select_index = it
-        
-        cr_max_list.append(temp_window[inter_max_index_list[select_index]])
-        cr_wid_list.append(inter_width_list[select_index])
-        cr_distribution_list.append(returns_dist_smooth_norm)
-        cr_entropy_list.append(cr_entropy)
         bird_id_list.append(int(m+1))
         i = i+1
 
@@ -300,34 +238,7 @@ sns.set()
 colors = ['C0','C1','C2','C3','C4','C5','C6','C7','C8','C9']
 labels = ['Species 0','Species 1','Species 2','Species 3','Species 4','Species 5','Species 6','Species 7','Species 8','Species 9','Species 10']
 
-# fig1 = plt.figure(1)
-# ax1 = fig1.gca()
-# old_id = 0
-# for j in range(len(bird_id_list)):
-#     if old_id == bird_id_list[j]:
-#         ax1.plot(freq_list[j], fourier_list[j],colors[bird_id_list[j]+1])
-#     else:
-#         ax1.plot(freq_list[j],fourier_list[j],colors[bird_id_list[j]+1],label=labels[bird_id_list[j]+1])
-#     old_id = bird_id_list[j]+1
-# ax1.set(xlim=[0, 10000])
-# ax1.set(xlabel='Freqs (hz)',ylabel='Power')
-# plt.legend(prop={'size':20})
-# plt.draw()
-
-# fig2 = plt.figure(2)
-# ax2 = fig2.gca()
-# old_id = 0
-# for j in range(len(bird_id_list)):
-#     if old_id == bird_id_list[j]+1:
-#         ax2.plot(times_list[j][0:len(cr_distribution_list[j])],cr_distribution_list[j],colors[bird_id_list[j]+1])
-#     else:
-#         ax2.plot(times_list[j][0:len(cr_distribution_list[j])],cr_distribution_list[j],colors[bird_id_list[j]+1],label=labels[bird_id_list[j]+1])
-#     old_id = bird_id_list[j]+1
-# ax2.set(xlabel='Time (seconds)',ylabel='Relative Counts')
-# plt.legend(prop={'size':20})
-# plt.draw()
-
-fig3 = plt.figure(3)
+fig3 = plt.figure(1)
 ax3 = fig3.gca()
 old_id = 0
 for j in range(len(bird_id_list)):
@@ -337,35 +248,35 @@ for j in range(len(bird_id_list)):
         ax3.scatter(fou_max_list[j],fou_wid_list[j],c=colors[bird_id_list[j]],s=200,label=labels[bird_id_list[j]])
     ax3.annotate(str(bird_id_list[j]), (fou_max_list[j],fou_wid_list[j]))
     old_id = bird_id_list[j]
-ax3.set(xlabel='Max Position (Hz)',ylabel='Width (Hz)',title='Fourier Maximum')
+ax3.set(xlabel='Max Position (Hz)',ylabel='Width (Hz)',title='Fourier Analisis')
 plt.legend(prop={'size':15})
 plt.draw()
 
-fig4 = plt.figure(4)
+fig4 = plt.figure(2)
 ax4 = fig4.gca()
 old_id = 0
 for j in range(len(bird_id_list)):
     if old_id == bird_id_list[j]:
-        ax4.scatter(cr_max_list[j],cr_wid_list[j],c=colors[bird_id_list[j]],s=200)
+        ax4.scatter(syl_mean_list[j],syl_std_list[j],c=colors[bird_id_list[j]],s=200)
     else:
-        ax4.scatter(cr_max_list[j],cr_wid_list[j],c=colors[bird_id_list[j]],s=200,label=labels[bird_id_list[j]])
-    ax4.annotate(str(bird_id_list[j]), (cr_max_list[j],cr_wid_list[j]))
+        ax4.scatter(syl_mean_list[j],syl_std_list[j],c=colors[bird_id_list[j]],s=200,label=labels[bird_id_list[j]])
+    ax4.annotate(str(bird_id_list[j]), (syl_mean_list[j],syl_std_list[j]))
     old_id = bird_id_list[j]
-ax4.set(xlabel='Max Position (Seconds)',ylabel='Width (Seconds)',title='Close Returns Maximum')
+ax4.set(xlabel='Mean Syllabe Duration (Seconds)',ylabel='STD Syllabe Duration (Seconds)',title='Syllabe Statistics')
 plt.legend(prop={'size':15})
 plt.draw()
 
-fig5 = plt.figure(5)
+fig5 = plt.figure(3)
 ax5 = fig5.gca()
 old_id = 0
 for j in range(len(bird_id_list)):
     if old_id == bird_id_list[j]:
-        ax5.scatter(fou_entropy_list[j],cr_entropy_list[j],c=colors[bird_id_list[j]],s=200)
+        ax5.scatter(fou_entropy_list[j],syl_entropy_list[j],c=colors[bird_id_list[j]],s=200)
     else:
-        ax5.scatter(fou_entropy_list[j],cr_entropy_list[j],c=colors[bird_id_list[j]],s=200,label=labels[bird_id_list[j]])
-    ax5.annotate(str(bird_id_list[j]), (fou_entropy_list[j],cr_entropy_list[j]))
+        ax5.scatter(fou_entropy_list[j],syl_entropy_list[j],c=colors[bird_id_list[j]],s=200,label=labels[bird_id_list[j]])
+    ax5.annotate(str(bird_id_list[j]), (fou_entropy_list[j],syl_entropy_list[j]))
     old_id = bird_id_list[j]
-ax5.set(xlabel='Fourier Entropy',ylabel='CR entropy',title='Entropys')
+ax5.set(xlabel='Fourier Entropy',ylabel='Syllabe Duration entropy',title='Entropys')
 plt.legend(prop={'size':15})
 plt.draw()
 
